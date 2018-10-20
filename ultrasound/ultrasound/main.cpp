@@ -7,7 +7,6 @@
 #include <GLUT/vvector.h>
 #include <vector>
 #include <iostream>
-#include <math.h>
 
 using namespace std;
 
@@ -20,22 +19,43 @@ double rotate_x = 0;
 
 // For moving probe
 double step = -0.02;
-double height = 0;
+double height = 1.0;
 double inter_point = 0.01;
 
 // For dragging the view
-static float c=M_PI/180.0f;
+static double c=M_PI/180.0f;
 static int du=90,oldmy=-1,oldmx=-1;
 //du - angle wrt y axis, y is up in OpenGL
-static float r=1.5f,h=0.0f;
+static double r=1.5f,h=0.0f;
 
-// random rays
-float lines[100][6];
+// For drawing a cone
+vector<double> probe = {0.0, 0.0, 0.0};
+vector<double> ending = {-1.0, 0.0, 0.0};
+vector<double> randomPoint(3,0);
+vector<double> orientation = {-1.0, 0.0, 0.0}; // unit vector
+double spreadness = 25;
+double resolution = 1;
+
+//// random rays
+//double lines[100][6];
 
 
-bool rayPlaneIntersection(vector<float>& intersection, vector<float> ray, vector<float> probe,
-                           vector<float> normal, vector<float> planePoint) {
-    float temp;
+void getRotated(vector<double>& rotated, vector<double> original, double angle, double axis_x, double axis_y, double axis_z){
+    double rad = angle / 180 * 3.1416;
+    double c = cosf(rad);
+    double s = sinf(rad);
+    double rotationMat[3][3] =
+    { {powf(axis_x,2)*(1-c)+c, axis_x*axis_y*(1-c)+axis_z*s, axis_x*axis_z*(1-c)-axis_y*s},
+        {axis_x*axis_y*(1-c)-axis_z*s, powf(axis_y,2)*(1-c)+c, axis_y*axis_z*(1-c)+axis_x*s},
+        {axis_z*axis_x*(1-c)+axis_y*s, axis_y*axis_z*(1-c)-axis_x*s, powf(axis_z,2)*(1-c)+c}
+    };
+    MAT_DOT_VEC_3X3(rotated, rotationMat, original);
+}
+
+
+bool rayPlaneIntersection(vector<double>& intersection, vector<double> ray, vector<double> probe,
+                           vector<double> normal, vector<double> planePoint) {
+    double temp;
     VEC_DOT_PRODUCT(temp,normal,ray);
     
     //check if the ray is parallel to the plane
@@ -43,7 +63,7 @@ bool rayPlaneIntersection(vector<float>& intersection, vector<float> ray, vector
         return false;
     }
     
-    float t = ((planePoint[0] - probe[0]) * normal[0] + (planePoint[1] - probe[1]) * normal[1] + (planePoint[2] - probe[2]) * normal[2]) / temp;
+    double t = ((planePoint[0] - probe[0]) * normal[0] + (planePoint[1] - probe[1]) * normal[1] + (planePoint[2] - probe[2]) * normal[2]) / temp;
     intersection[0] = probe[0] + ray[0] * t;
     intersection[1] = probe[1] + ray[1] * t;
     intersection[2] = probe[2] + ray[2] * t;
@@ -52,27 +72,27 @@ bool rayPlaneIntersection(vector<float>& intersection, vector<float> ray, vector
 }
 
 
-bool checkPointInTriangle(vector<float> point, vector<float> v1, vector<float> v2, vector<float> v3){
-    vector<float> vec0 = {v3[0] - v1[0], v3[1] - v1[1], v3[2] - v1[2]};
-    vector<float> vec1 = {v2[0] - v1[0], v2[1] - v1[1], v2[2] - v1[2]};
-    vector<float> vec2 = {point[0] - v1[0], point[1] - v1[1], point[2] - v1[2]};
+bool checkPointInTriangle(vector<double> point, vector<double> v1, vector<double> v2, vector<double> v3){
+    vector<double> vec0 = {v3[0] - v1[0], v3[1] - v1[1], v3[2] - v1[2]};
+    vector<double> vec1 = {v2[0] - v1[0], v2[1] - v1[1], v2[2] - v1[2]};
+    vector<double> vec2 = {point[0] - v1[0], point[1] - v1[1], point[2] - v1[2]};
     
-    float dot00, dot01, dot02, dot11, dot12;
+    double dot00, dot01, dot02, dot11, dot12;
     VEC_DOT_PRODUCT(dot00, vec0, vec0);
     VEC_DOT_PRODUCT(dot01, vec0, vec1);
     VEC_DOT_PRODUCT(dot02, vec0, vec2);
     VEC_DOT_PRODUCT(dot11, vec1, vec1);
     VEC_DOT_PRODUCT(dot12, vec1, vec2);
     
-    float inverDeno = 1 / (dot00 * dot11 - dot01 * dot01) ;
+    double inverDeno = 1 / (dot00 * dot11 - dot01 * dot01) ;
     
-    float u = (dot11 * dot02 - dot01 * dot12) * inverDeno ;
+    double u = (dot11 * dot02 - dot01 * dot12) * inverDeno ;
     if (u < 0 || u > 1) // if u out of range, return directly
     {
         return false ;
     }
     
-    float v = (dot00 * dot12 - dot01 * dot02) * inverDeno ;
+    double v = (dot00 * dot12 - dot01 * dot02) * inverDeno ;
     if (v < 0 || v > 1) // if v out of range, return directly
     {
         return false ;
@@ -155,64 +175,92 @@ void display(void)
     glPushMatrix();
     
     // Define the cube
-    vector<float> normals[3];
+    vector<double> normals[3];
     normals[0] = {0, 0, 1};
     normals[1] = {1, 0, 0};
     normals[2] = {0, 1, 0};
     
     // FRONT: 0, BACK: 1, RIGHT: 2, LEFT: 3, TOP: 4, BOTTOM: 5
-    vector<float> sides[6][4];
+    /*
+     
+     3-------0
+     |       |
+     |       |
+     |       |
+     2-------1
+     
+    */
+    vector<double> sides[6][4];
     
-    sides[0][0] = {0.3, 0.3, 0.3};
-    sides[0][1] = {0.3, -0.3, 0.3};
-    sides[0][2] = {-0.3, -0.3, 0.3};
-    sides[0][3] = {-0.3, 0.3, 0.3};
+    sides[0][0] = {0.3-height, 0.3, 0.3};
+    sides[0][1] = {0.3-height, -0.3, 0.3};
+    sides[0][2] = {-0.3-height, -0.3, 0.3};
+    sides[0][3] = {-0.3-height, 0.3, 0.3};
     
-    sides[1][0] = {-0.3, 0.3, -0.3};
-    sides[1][1] = {-0.3, -0.3, -0.3};
-    sides[1][2] = {0.3, -0.3, -0.3};
-    sides[1][3] = {0.3, 0.3, -0.3};
+    sides[1][0] = {-0.3-height, 0.3, -0.3};
+    sides[1][1] = {-0.3-height, -0.3, -0.3};
+    sides[1][2] = {0.3-height, -0.3, -0.3};
+    sides[1][3] = {0.3-height, 0.3, -0.3};
     
-    sides[2][0] = {0.3, 0.3, -0.3};
-    sides[2][1] = {0.3, -0.3, -0.3};
-    sides[2][2] = {0.3, -0.3, 0.3};
-    sides[2][3] = {0.3, 0.3, 0.3};
+    sides[2][0] = {0.3-height, 0.3, -0.3};
+    sides[2][1] = {0.3-height, -0.3, -0.3};
+    sides[2][2] = {0.3-height, -0.3, 0.3};
+    sides[2][3] = {0.3-height, 0.3, 0.3};
     
-    sides[3][0] = {-0.3, 0.3, 0.3};
-    sides[3][1] = {-0.3,-0.3, 0.3};
-    sides[3][2] = {-0.3, -0.3, -0.3};
-    sides[3][3] = {-0.3, 0.3, -0.3};
+    sides[3][0] = {-0.3-height, 0.3, 0.3};
+    sides[3][1] = {-0.3-height,-0.3, 0.3};
+    sides[3][2] = {-0.3-height, -0.3, -0.3};
+    sides[3][3] = {-0.3-height, 0.3, -0.3};
     
-    sides[4][0] = {0.3, 0.3, -0.3};
-    sides[4][1] = {0.3, 0.3, 0.3};
-    sides[4][2] = {-0.3, 0.3, 0.3};
-    sides[4][3] = {-0.3, 0.3, -0.3};
+    sides[4][0] = {0.3-height, 0.3, -0.3};
+    sides[4][1] = {0.3-height, 0.3, 0.3};
+    sides[4][2] = {-0.3-height, 0.3, 0.3};
+    sides[4][3] = {-0.3-height, 0.3, -0.3};
     
-    sides[5][0] = {0.3, -0.3, 0.3};
-    sides[5][1] = {0.3, -0.3, -0.3};
-    sides[5][2] = {-0.3, -0.3, -0.3};
-    sides[5][3] = {-0.3, -0.3, 0.3};
+    sides[5][0] = {0.3-height, -0.3, 0.3};
+    sides[5][1] = {0.3-height, -0.3, -0.3};
+    sides[5][2] = {-0.3-height, -0.3, -0.3};
+    sides[5][3] = {-0.3-height, -0.3, 0.3};
     
     
     // Define the probes
-    glTranslatef(0, height, 0);
+    glTranslatef(height, 0, 0);
     
-    for(int line = 0; line < 100; line++){
+    // draw prob and axis
+    glPointSize(7.0f);//set point size to 10 pixels
+    glColor3f(1.0,1.0,0.0); //red color
+    glBegin(GL_POINTS); //starts drawing of points
+    glVertex3f(probe[0],probe[1],probe[2]);
+    glEnd();
+    glBegin(GL_LINES);
+    glLineWidth(4.0);
+    glColor3f(1.0, 1.0, 0.0);
+    glVertex3f(probe[0], probe[1], probe[2]);
+    glVertex3f(ending[0], ending[1], ending[2]);
+    glEnd();
+    
+    // pick a random normal in 3D space
+    vector<double> vec1(3, 0);
+    VEC_DIFF(vec1, randomPoint, probe)
+    vector<double> normal(3, 0);
+    VEC_CROSS_PRODUCT(normal, orientation, vec1);
+    VEC_NORMALIZE(normal);
+    
+    for(int i = 0; i < 360/resolution; i++){
         
-        // Probe - Straight Line
-        vector<float> linePoint1 = {lines[line][0], lines[line][1], lines[line][2]};
-        vector<float> linePoint2 = {lines[line][3], lines[line][4], lines[line][5]};
+        // draw one line on the cone
+        vector<double> conePoint(3, 0);
+        getRotated(conePoint, ending, spreadness, normal[0], normal[1], normal[2]);
         glBegin(GL_LINES);
         glLineWidth(3.0);
         glColor3f(0.0, 0.0, 1.0);
-        glVertex3f(linePoint1[0], linePoint1[1], linePoint1[2]);
-        glVertex3f(linePoint2[0], linePoint2[1], linePoint2[2]);
+        glVertex3f(probe[0], probe[1], probe[2]);
+        glVertex3f(conePoint[0], conePoint[1], conePoint[2]);
         glEnd();
         
         // find intersections
-        vector<float> intersection(3, 0);
-        vector<float> ray = {linePoint1[0] - linePoint2[0], linePoint1[1] - linePoint2[1], linePoint1[2] - linePoint2[2]};
-        vector<float> probe = {linePoint1[0], linePoint1[1], linePoint1[2]};
+        vector<double> intersection(3, 0);
+        vector<double> ray = {conePoint[0] - probe[0], conePoint[1] - probe[1], conePoint[2] - probe[2]};
         
         // Draw intersection points
         glPointSize(7.0f);//set point size to 10 pixels
@@ -240,6 +288,8 @@ void display(void)
             }
         }
         
+        getRotated(normal, normal, resolution, orientation[0], orientation[1], orientation[2]);
+        
     }
     
     glPopMatrix();
@@ -253,10 +303,10 @@ void display(void)
 // Mouse click action: record old coordinate when click
 void Mouse(int button, int state, int x, int y)
 {
-    if(state == GLUT_DOWN)
+    if(state == GLUT_DOWN){
         oldmx = x;
-    oldmy = y;
-    
+        oldmy = y;
+    }
 }
 
 // Mouse move action
@@ -291,7 +341,7 @@ void reshape(int w,int h)
     
     glLoadIdentity();
     
-    gluPerspective(75.0f, (float)w/h, 1.0f, 1000.0f);
+    gluPerspective(75.0f, (double)w/h, 0.5f, 1000.0f);
     
     glMatrixMode( GL_MODELVIEW );
     
@@ -319,11 +369,13 @@ void selfMoving() {
 
 int main(int argc, char *argv[])
 {
-    for(int i = 0; i < 100; i++){
-        for(int j = 0; j < 6; j++){
-            lines[i][j] = (float)(rand() % 100 - 50)/50;
-        }
-    }
+//    for(int i = 0; i < 100; i++){
+//        for(int j = 0; j < 6; j++){
+//            lines[i][j] = (double)(rand() % 100 - 50)/50;
+//        }
+//    }
+    
+    randomPoint = {(double)(rand() % 100 - 50)/50, (double)(rand() % 100 - 50)/50, (double)(rand() % 100 - 50)/50};
     
     glutInit(&argc, argv);
     
