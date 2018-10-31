@@ -79,10 +79,34 @@ void reshape(int w,int h)
     
 }
 
+int fill_vectors(vector <vector<double>> A, vector<double> B){
+    // get all values from raw.txt file and insert into matrix and vector
+    
+    string line;
+    ifstream sampleFile("raw.txt");
+    
+    if (sampleFile.is_open()){
+        while ( getline(sampleFile,line)){
+            int first = 0; int last = line.find(delimiter);
+            double x = line.substr(first, last);
+            first = last; last = line.find(delimiter, last);
+            double y = line.substr(first, last);
+            double z = line.substr(last);
+            
+            vector <double> a_val {x, y, 1.0};
+            A.push_back(a_val);
+            B.push_back(z);
+        }
+        sampleFile.close();
+    }
+}
 
 int main(int argc, const char * argv[]) {
     
 //    glutInit(&argc, argv);
+    vector <vector<double>> A;
+    vector <double> B;
+    fill_vectors(A, B);
     
     glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH );
     
