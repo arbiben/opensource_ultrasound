@@ -79,34 +79,94 @@ void reshape(int w,int h)
     
 }
 
-int fill_vectors(vector <vector<double>> A, vector<double> B){
+void fill_vectors(vector <vector<double>>& A, vector<double>& B){
     // get all values from raw.txt file and insert into matrix and vector
-    
     string line;
-    ifstream sampleFile("raw.txt");
+    ifstream sampleFile;
+    sampleFile.open("raw.txt");
     
-    if (sampleFile.is_open()){
-        while ( getline(sampleFile,line)){
-            int first = 0; int last = line.find(delimiter);
-            double x = line.substr(first, last);
-            first = last; last = line.find(delimiter, last);
-            double y = line.substr(first, last);
-            double z = line.substr(last);
-            
-            vector <double> a_val {x, y, 1.0};
-            A.push_back(a_val);
-            B.push_back(z);
+    string delimiter = " ";
+    while ( getline(sampleFile,line)){
+        int first = 0; int last = line.find(delimiter);
+        double x = stod(line.substr(first, last));
+        first = last; last = line.find(delimiter, last);
+        double y = stod(line.substr(first, last));
+        double z = stod(line.substr(last));
+        
+        vector <double> a_val {x, y, 1.0};
+        A.push_back(a_val);
+        B.push_back(z);
+    }
+    sampleFile.close();
+}
+
+void fill_transpose(vector<vector<double>> from, vector<vector<double>>& to){
+    for (int i=0; i<from[0].size(); i++){
+        to[i] = vector<double>(from.size());
+        for (int j=0; j<from.size(); j++){
+            to[i][j] = from[j][i];
         }
-        sampleFile.close();
     }
 }
 
+void multiply_matrices(vector<vector<double>> A, vector<vector<double>> B, vector<vector<double>>& to){
+    // initialize the vector
+    for (int i=0; i<A.size(); i++){
+        vector<double> a;
+        to.push_back(a);
+        for(int j=0; j<B[0].size(); j++) to[i].push_back(0);
+    }
+    
+    for (int i=0; i<A.size(); i++){
+        for (int j=0; j<B[0].size(); j++){
+            int curr = 0;
+            for (int k=0; k<B.size(); k++){
+                curr += A[j%A.size()][k] * B[k][j];
+            }
+            to[i][j] = curr;
+        }
+    }
+}
+
+void matrix_times_vector(vector<vector<double>> A, vector<double> V, vector<double>& ans){
+    for (int i=0; i<A.size(); i++){
+        int curr = 0;
+        for (int j=0; j<A[0].size(); j++){
+            curr += A[i][j]*V[j];
+        }
+        ans.push_back(curr);
+    }
+}
+
+
 int main(int argc, const char * argv[]) {
     
-//    glutInit(&argc, argv);
+    //glutInit(&argc, argv);
     vector <vector<double>> A;
-    vector <double> B;
+    vector <vector<double>> inverse;
+    vector<double> B;
+    double det;
+    vector<double> plane_vector;
+    
     fill_vectors(A, B);
+    
+    vector <vector<double>> A_t(A[0].size()); // transpose of A
+    fill_transpose(A, A_t);
+    vector <vector<double>> A_t_A; // transpose A times A
+    multiply_matrices(A_t, A, A_t_A);
+    
+    for (int i=0; i<A_t_A.size(); i++){
+        vector<double> a;
+        inverse.push_back(a);
+        for(int j=0; j<A_t_A[0].size(); j++) inverse[i].push_back(0);
+    }
+    
+    INVERT_3X3(inverse, det, A_t_A);
+    
+    vector<vector<double>> temp;
+    multiply_matrices(inverse, A_t, temp);
+    matrix_times_vector(temp, B, plane_vector);
+    
     
     glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH );
     
@@ -122,7 +182,7 @@ int main(int argc, const char * argv[]) {
     
     glutDisplayFunc(display);
     
-//    glutIdleFunc(selfMoving);
+    //    glutIdleFunc(selfMoving);
     
     glutMouseFunc(Mouse);
     
@@ -132,3 +192,4 @@ int main(int argc, const char * argv[]) {
     
     return 0;
 }
+
