@@ -4,7 +4,6 @@
 //
 //  Created by CHEN Liqi on 10/31/18.
 //  Copyright © 2018 CHEN Liqi. All rights reserved.
-//
 
 #include <GLUT/glut.h>
 #include <OpenGL/OpenGL.h>
@@ -19,22 +18,74 @@
 
 using namespace std;
 
-
 // For dragging the view
 static double c=M_PI/180.0f;
 static int du=90,oldmy=-1,oldmx=-1;
 //du - angle wrt y axis, y is up in OpenGL
 static double r=1.5f,h=0.0f;
+static vector<double> plane_vector;
+static vector <vector<double>> A;
 
+
+
+void matrix_times_vector(vector<vector<double>> A, vector<double> V, vector<double>& ans){
+    for (int i=0; i<A.size(); i++){
+        int curr = 0;
+        for (int j=0; j<A[0].size(); j++){
+            curr += A[i][j]*V[j];
+        }
+        ans.push_back(curr);
+    }
+}
 
 void display(){
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glLoadIdentity();
+    gluLookAt(r*cos(c*du), h, r*sin(c*du), 0, 0, 0, 0, 1, 0);
+    glPushMatrix();
+    vector<double> temp;
+    matrix_times_vector(A, plane_vector, temp);
+
+    // plane
+    double z1 = 0.5 * plane_vector[0] + 0.5 * plane_vector[1] + plane_vector[2];
+    double z2 = -0.5 * plane_vector[0] + 0.5 * plane_vector[1] + plane_vector[2];
+    double z3 = 0.5 * plane_vector[0] - 0.5 * plane_vector[1] + plane_vector[2];
+    double z4 = -0.5 * plane_vector[0] - 0.5 * plane_vector[1] + plane_vector[2];
+    
+    
+    
+    glBegin(GL_POLYGON);
+    glColor3f(   0.5,  0.5, 0.5 );
+    
+    glVertex3f(  0.5, 0.5, z1 );
+    glVertex3f(  -0.5,  0.5, z2 );
+    glVertex3f( 0.5,  -0.5, z3 );
+    glVertex3f( -0.5, -0.5, z4 );
+    glEnd();
+    
+    glPopMatrix();
+    glFlush();
+
+    glutSwapBuffers();
+//    for (int i=0 ; i<A.size(); i++){
+//        double x, y, z;
+//        x = A[i][0]; y = A[i][1];
+//        z = plane_vector[2];
+//        // Draw intersection points
+//        glPointSize(7.0f);//set point size to 10 pixels
+//        glColor3f(1.0f,0.0f,0.0f); //red color
+//
+//        glBegin(GL_POINTS); //starts drawing of points
+//        glVertex3f(x,y,z);
+//        glEnd();//end drawing of points
+//
+//    }
     
 }
 
 
 // Mouse click action: record old coordinate when click
-void Mouse(int button, int state, int x, int y)
-{
+void Mouse(int button, int state, int x, int y){
     if(state == GLUT_DOWN){
         oldmx = x;
         oldmy = y;
@@ -42,8 +93,7 @@ void Mouse(int button, int state, int x, int y)
 }
 
 // Mouse move action
-void onMouseMove(int x,int y)
-{
+void onMouseMove(int x,int y){
     du += x - oldmx;
     // move left-right
     h +=0.03f*(y-oldmy);
@@ -60,20 +110,18 @@ void onMouseMove(int x,int y)
     glutPostRedisplay();
 }
 
-void init()
-{
+void init(){
     glEnable(GL_DEPTH_TEST);
 }
 
-void reshape(int w,int h)
-{
+void reshape(int w,int h){
     glViewport( 0, 0, w, h );
     
     glMatrixMode( GL_PROJECTION );
     
     glLoadIdentity();
     
-    gluPerspective(75.0f, (double)w/h, 0.5f, 1000.0f);
+    gluPerspective(75.0f, (float)w/h, 1.0f, 1000.0f);
     
     glMatrixMode( GL_MODELVIEW );
     
@@ -84,7 +132,7 @@ void fill_vectors(vector <vector<double>>& A, vector<double>& B){
     string line;
     ifstream sampleFile;
     sampleFile.open("raw.txt");
-
+    
     string delimiter = " ";
     while ( getline(sampleFile,line)){
         int first = 0; int last = line.find(delimiter);
@@ -116,7 +164,7 @@ void multiply_matrices(vector<vector<double>> A, vector<vector<double>> B, vecto
         to.push_back(a);
         for(int j=0; j<B[0].size(); j++) to[i].push_back(0);
     }
-
+    
     for (int i=0; i<A.size(); i++){
         for (int j=0; j<B[0].size(); j++){
             int curr = 0;
@@ -128,25 +176,11 @@ void multiply_matrices(vector<vector<double>> A, vector<vector<double>> B, vecto
     }
 }
 
-void matrix_times_vector(vector<vector<double>> A, vector<double> V, vector<double>& ans){
-    for (int i=0; i<A.size(); i++){
-        int curr = 0;
-        for (int j=0; j<A[0].size(); j++){
-            curr += A[i][j]*V[j];
-        }
-        ans.push_back(curr);
-    }
-}
+int main(int argc, char * argv[]) {
 
-
-int main(int argc, const char * argv[]) {
-    
-    //glutInit(&argc, argv);
-    vector <vector<double>> A;
     vector <vector<double>> inverse;
     vector<double> B;
     double det;
-    vector<double> plane_vector;
     
     fill_vectors(A, B);
     
@@ -167,6 +201,7 @@ int main(int argc, const char * argv[]) {
     multiply_matrices(inverse, A_t, temp);
     matrix_times_vector(temp, B, plane_vector);
     
+    glutInit(&argc, argv);
     
     glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH );
     
@@ -181,8 +216,6 @@ int main(int argc, const char * argv[]) {
     glutReshapeFunc( reshape );
     
     glutDisplayFunc(display);
-    
-    //    glutIdleFunc(selfMoving);
     
     glutMouseFunc(Mouse);
     
