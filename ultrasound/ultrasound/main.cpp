@@ -25,64 +25,49 @@ static int du=90,oldmy=-1,oldmx=-1;
 static double r=1.5f,h=0.0f;
 static vector<double> plane_vector;
 static vector <vector<double>> A;
-
-
-
-void matrix_times_vector(vector<vector<double>> A, vector<double> V, vector<double>& ans){
-    for (int i=0; i<A.size(); i++){
-        int curr = 0;
-        for (int j=0; j<A[0].size(); j++){
-            curr += A[i][j]*V[j];
-        }
-        ans.push_back(curr);
-    }
-}
+static vector<double> B;
 
 void display(){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
     gluLookAt(r*cos(c*du), h, r*sin(c*du), 0, 0, 0, 0, 1, 0);
-    glPushMatrix();
-    vector<double> temp;
-    matrix_times_vector(A, plane_vector, temp);
+//    glPushMatrix();
 
     // plane
     double z1 = 0.5 * plane_vector[0] + 0.5 * plane_vector[1] + plane_vector[2];
     double z2 = -0.5 * plane_vector[0] + 0.5 * plane_vector[1] + plane_vector[2];
     double z3 = 0.5 * plane_vector[0] - 0.5 * plane_vector[1] + plane_vector[2];
     double z4 = -0.5 * plane_vector[0] - 0.5 * plane_vector[1] + plane_vector[2];
-    
-    
+
     
     glBegin(GL_POLYGON);
     glColor3f(   0.5,  0.5, 0.5 );
     
     glVertex3f(  0.5, 0.5, z1 );
     glVertex3f(  -0.5,  0.5, z2 );
-    glVertex3f( 0.5,  -0.5, z3 );
     glVertex3f( -0.5, -0.5, z4 );
+    glVertex3f( 0.5,  -0.5, z3 );
     glEnd();
     
-    glPopMatrix();
-    glFlush();
-
-    glutSwapBuffers();
-//    for (int i=0 ; i<A.size(); i++){
-//        double x, y, z;
-//        x = A[i][0]; y = A[i][1];
-//        z = plane_vector[2];
-//        // Draw intersection points
-//        glPointSize(7.0f);//set point size to 10 pixels
-//        glColor3f(1.0f,0.0f,0.0f); //red color
-//
-//        glBegin(GL_POINTS); //starts drawing of points
-//        glVertex3f(x,y,z);
-//        glEnd();//end drawing of points
-//
-//    }
+//    glPopMatrix();
     
-}
 
+    glPointSize(7.0f);//set point size to 10 pixels
+    glColor3f(1.0f,0.0f,0.0f); //red color
+    for (int i=0 ; i<A.size(); i++){
+        double x, y, z;
+        x = A[i][0]; y = A[i][1];
+        z = B[i];
+        // Draw intersection points
+
+        glBegin(GL_POINTS); //starts drawing of points
+        glVertex3f(x,y,z);
+        glEnd();//end drawing of points
+    }
+    
+    glFlush();
+    glutSwapBuffers();
+}
 
 // Mouse click action: record old coordinate when click
 void Mouse(int button, int state, int x, int y){
@@ -127,6 +112,16 @@ void reshape(int w,int h){
     
 }
 
+void matrix_times_vector(vector<vector<double>> A, vector<double> V, vector<double>& ans){
+    for (int i=0; i<A.size(); i++){
+        int curr = 0;
+        for (int j=0; j<A[0].size(); j++){
+            curr += A[i][j]*V[j];
+        }
+        ans.push_back(curr);
+    }
+}
+
 void fill_vectors(vector <vector<double>>& A, vector<double>& B){
     // get all values from raw.txt file and insert into matrix and vector
     string line;
@@ -136,11 +131,13 @@ void fill_vectors(vector <vector<double>>& A, vector<double>& B){
     string delimiter = " ";
     while ( getline(sampleFile,line)){
         int first = 0; int last = line.find(delimiter);
-        double x = stod(line.substr(first, last));
-        first = last; last = line.find(delimiter, last);
-        double y = stod(line.substr(first, last));
-        double z = stod(line.substr(last));
+        double x = stod(line.substr(first, last-first)) + 1;
         
+        first = last+1; last = line.find(delimiter, first);
+        
+        double y = stod(line.substr(first, last-first));
+        
+        double z = stod(line.substr(last+1));
         vector <double> a_val {x, y, 1.0};
         A.push_back(a_val);
         B.push_back(z);
@@ -167,9 +164,9 @@ void multiply_matrices(vector<vector<double>> A, vector<vector<double>> B, vecto
     
     for (int i=0; i<A.size(); i++){
         for (int j=0; j<B[0].size(); j++){
-            int curr = 0;
+            double curr = 0;
             for (int k=0; k<B.size(); k++){
-                curr += A[j%A.size()][k] * B[k][j];
+                curr += (A[i][k] * B[k][j]);
             }
             to[i][j] = curr;
         }
@@ -179,27 +176,46 @@ void multiply_matrices(vector<vector<double>> A, vector<vector<double>> B, vecto
 int main(int argc, char * argv[]) {
 
     vector <vector<double>> inverse;
-    vector<double> B;
     double det;
-    
     fill_vectors(A, B);
-    
     vector <vector<double>> A_t(A[0].size()); // transpose of A
     fill_transpose(A, A_t);
     vector <vector<double>> A_t_A; // transpose A times A
     multiply_matrices(A_t, A, A_t_A);
-    
     for (int i=0; i<A_t_A.size(); i++){
         vector<double> a;
         inverse.push_back(a);
         for(int j=0; j<A_t_A[0].size(); j++) inverse[i].push_back(0);
     }
-    
     INVERT_3X3(inverse, det, A_t_A);
     
+//    cout << det << endl;
     vector<vector<double>> temp;
     multiply_matrices(inverse, A_t, temp);
     matrix_times_vector(temp, B, plane_vector);
+    
+//    for (int i=0; i<A_t_A.size(); i++){
+//        for (int j=0; j<A_t_A[0].size(); j++){
+//            cout << A_t_A[i][j] << "\t" ;
+//        }
+//        cout << " " << endl;
+//    }
+//    cout << "\n" << endl;
+//
+//    for (int i=0; i<A.size(); i++){
+//        for (int j=0; j<A[0].size(); j++){
+//            cout << A[i][j] << "\t" ;
+//        }
+//        cout << "" << endl;
+//    }
+//
+//        for (int i=0; i<A_t.size(); i++){
+//            for (int j=0; j<A_t[0].size(); j++){
+//                cout << A_t[i][j] << "\t" ;
+//            }
+//            cout << "" << endl;
+//        }
+    
     
     glutInit(&argc, argv);
     
