@@ -1,10 +1,11 @@
-import csv
+import csv, math
+import numpy as np
+
 class Plane:
     def __init__(self, x, y, z):
         self.x = x
         self.y = y
-        self.z - z
-        
+        self.z = z
 
 class Line:
     def __init__(self,x,y,z,e):
@@ -12,7 +13,6 @@ class Line:
         self.y = y
         self.z = z
         self.e = e
-
 
 time_stamp = []
 distance = []
@@ -24,6 +24,22 @@ with open('obs.csv') as csv_file:
             time_stamp.append(row[0])
             distance.append(row[1])
         line_count+=1
+time_stamp.reverse()
+distance.reverse()
+
+angle = 36
+points = []
+start_point = 5
+v = np.array([0, math.cos(25), math.sin(25)])
+A = np.array([[math.cos(angle), 0, math.sin(angle)],[0,1,0],[-math.sin(angle), 0, math.cos(angle)]])
+while start_point >= -5:
+    start_point -= 0.5
+    dis = distance.pop()
+    x, y, z = v[0], v[1], v[2]
+    points.append([x*dis,y*dis,z*dis])
+    np.array(v)
+    v = A.dot(b)
+
 
 
 '''
