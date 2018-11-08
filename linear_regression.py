@@ -42,5 +42,5 @@ while start_point > -5:
     y = probe_coord[-1][1] + (v[1]*float(dis))
     z = probe_coord[-1][2] + (v[2]*float(dis))
     points.append([x,y,z])
-    # print("{} {} {}".format(x*float(dis),y*float(dis),z*float(dis)))
+    print("[{}, {}, {}]".format(x*float(dis),y*float(dis),z*float(dis)))
     v = A.dot(np.array(v))
