@@ -36,9 +36,11 @@ probe_coord = []
 while start_point > -5:
     probe_coord.append([0, -1, start_point])
     start_point -= 0.5
-    if len(distance) > 0:
-        dis = distance.pop()
-        x, y, z = v[0], v[1], v[2]
-        points.append([x*float(dis),y*float(dis),z*float(dis)])
-        # print("{} {} {}".format(x*float(dis),y*float(dis),z*float(dis)))
-        v = A.dot(np.array(v))
+    # if len(distance) > 0:
+    dis = distance.pop()
+    x = probe_coord[-1][0] + (v[0]*float(dis))
+    y = probe_coord[-1][1] + (v[1]*float(dis))
+    z = probe_coord[-1][2] + (v[2]*float(dis))
+    points.append([x,y,z])
+    # print("{} {} {}".format(x*float(dis),y*float(dis),z*float(dis)))
+    v = A.dot(np.array(v))
