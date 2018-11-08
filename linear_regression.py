@@ -37,8 +37,8 @@ while start_point >= -5:
     dis = distance.pop()
     x, y, z = v[0], v[1], v[2]
     points.append([x*dis,y*dis,z*dis])
-    np.array(v)
-    v = A.dot(b)
+    v = A.dot(np.array(v))
+
 
 
 
