@@ -27,10 +27,10 @@ with open('obs.csv') as csv_file:
 time_stamp.reverse()
 distance.reverse()
 
-angle = 36
+angle = 36*math.pi/180
 points = []
 start_point = 5
-v = np.array([0, math.cos(25), math.sin(25)])
+v = np.array([0, math.cos(25*math.pi/180), math.sin(25*math.pi/180)])
 A = np.array([[math.cos(angle), 0, math.sin(angle)],[0,1,0],[-math.sin(angle), 0, math.cos(angle)]])
 probe_coord = []
 while start_point > -5:
